@@ -1,0 +1,118 @@
+---
+title: "PracticalMachineLearning-Quiz4"
+author: "Mona Habibi"
+date: "June 17, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+require(knitr)
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+The goal is to predict the manner in which they did the exercise. This is library(AppliedPredictiveModeling) the "classe" variable in the training set. 
+
+
+#Uploading the libraries
+```{r}
+library(AppliedPredictiveModeling)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+set.seed(20001) 
+```
+
+
+
+# Data 
+
+The training data for this project are available here: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv]
+
+The test data are available here: [https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv]
+
+The data for this project come from this source: [http://groupware.les.inf.puc-rio.br/har].
+
+Here, we read the data and we replace #DIV/0! with NA.
+```{r}
+TrainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TestUrl  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainingdata <-read.csv("pml-training.csv", na.strings = c("NA", "", "#DIV0!"))
+testingdata <-read.csv("pml-testing.csv", na.strings = c("NA", "", "#DIV0!"))
+```
+                       
+Columns that have all missing values are deleted, same as all irrelvenat variables.
+
+```{r}
+trainingdata<-trainingdata[,colSums(is.na(trainingdata)) == 0]
+testingdata<-testingdata[,colSums(is.na(testingdata)) == 0]
+
+trainingdata<- trainingdata[,-c(1:7)]
+testingdata<- testingdata[,-c(1:7)]
+```
+
+The clean data set is partinioned into training part and validation part. The below plot shows the districution in each class; which confirms that there is no missing data.
+
+```{r}
+inTrain <- createDataPartition(y=trainingdata$classe, p=0.75, list=FALSE)
+training<-trainingdata[inTrain,]
+testing<-trainingdata[-inTrain,]
+qplot(classe, fill = "4", data=training, main="Distribution of Classes")
+
+```
+# Model fitting
+
+To find the proper fitting model, we do the fitting with decicion tree and random forest model, and we compare the model performance on the training set itself.
+## Desicion tree
+```{r}
+modelDt <- rpart(classe ~ ., data=training, method="class")
+prediction_Dt <- predict(modelDt, testing, type = "class")
+rpart.plot(modelDt, main="Classification Tree", extra=102, under=TRUE)
+confusionMatrix(prediction_Dt, testing$classe)
+```
+
+The accurace of the decision tree model is 0.72.
+Next, we try the random forest model.
+
+## Random forest
+```{r}
+
+modelRf <- train(classe ~ ., data=training, method="rf", na.action=na.omit)
+modelRf
+```
+```{r}
+predict_Rf <- predict(modelRf, testing)
+confusionMatrix(testing$classe, predict_Rf)
+```
+
+## Test set prediction
+The cross validation accuracy is 0.99 , that is saying the random forest model model performs much better tha tree decision model. Therefore, we pick random forest prediction to validiate the testing data set.
+
+```{r}
+predict_Rftest <- predict(modelRf, testingdata)
+predict_Rftest
+```
+```
+
+```{r}
+output <- as.vector(predict_Rftest)
+
+outputfile = function(x) {
+    n = length(x)
+    for (i in 1:n) {
+        filename = paste0("Quiz4.txt")
+        write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, 
+            col.names = FALSE)
+    }
+}
+
+outputfile(output)
+```
